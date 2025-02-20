@@ -12,6 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jose30a2.clientes.dto.ClientDTO;
 import com.jose30a2.clientes.entities.Client;
 import com.jose30a2.clientes.repositories.ClientRepository;
+import com.jose30a2.clientes.service.service.ResourceNotFoundException;
+
+import jakarta.persistence.EntityNotFoundException;
 
 
 
@@ -32,7 +35,7 @@ public class ClientService {
 	@Transactional(readOnly = true)
 	public ClientDTO findById(long id) {
 		
-		return new ClientDTO(repository.findById(id).get());
+		return new ClientDTO(repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Recurso no encontrado")));
 	}
 	
 	@Transactional
@@ -47,16 +50,25 @@ public class ClientService {
 	
 	@Transactional
 	public ClientDTO update(Long id, ClientDTO dto) {
-		Client entity = repository.getReferenceById(id);
-		copyDtoToEntity(dto, entity);
-		entity = repository.save(entity);
-		return new ClientDTO(entity);
+		try {
+			Client entity = repository.getReferenceById(id);
+			copyDtoToEntity(dto, entity);
+			entity = repository.save(entity);
+			return new ClientDTO(entity);
+		} catch (EntityNotFoundException e) {
+			
+			throw new ResourceNotFoundException("Recurso no encontrado");
+		}
 	}
 	
 	// Incluo propagation a pesar de nao precisar por nao ter tablas com foreign keys
 	@Transactional(propagation = Propagation.SUPPORTS)
 	public void delete(Long id) {
-		repository.deleteById(id);
+		if(!repository.existsById(id)) {
+			throw new ResourceNotFoundException("Recurso no encontrado");
+		}else {
+			repository.deleteById(id);
+		}
 	}
 
 	private void copyDtoToEntity(ClientDTO dto, Client entity) {
